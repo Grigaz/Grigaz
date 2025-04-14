@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Слот с фоном и музыкой</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+      background: linear-gradient(135deg, #1a1a40, #4b0082);
+      color: #fff;
+    }
+    .reels {
+      font-size: 60px;
+      margin: 20px 0;
+      transition: transform 0.3s ease;
+    }
+    .reels.spin {
+      transform: rotateX(360deg);
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 18px;
+      cursor: pointer;
+      background-color: #ff9800;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #e68900;
+    }
+    .message {
+      margin-top: 20px;
+      font-size: 24px;
+    }
+    .balance {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    .freespins, .jackpot {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+    input[type="number"] {
+      width: 80px;
+      padding: 5px;
+      font-size: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Слот-машина</h1>
+  <div class="balance">Баланс: <span id="balance"></span> монет</div>
+  Ставка: <input type="number" id="bet" value="100" min="1" step="1" />
+  <div class="freespins">Фриспины: <span id="freespins">0</span></div>
+  <div class="jackpot">Джекпот: <span id="jackpot">0</span> монет</div>
+  <div class="reels" id="reels">❔ ❔ ❔</div>
+  <button onclick="spin()">SPIN</button>
+  <button onclick="toggleMusic()">Музыка: Вкл/Выкл</button>
+  <div class="message" id="message"></div>
+
+  <audio id="bg-music" src="https://cdn.pixabay.com/audio/2022/03/15/audio_881f7dcfb9.mp3" loop></audio>
+  <audio id="win-sound" src="https://www.soundjay.com/button/sounds/button-3.mp3"></audio>
+  <audio id="lose-sound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
+  <audio id="jackpot-sound" src="https://www.soundjay.com/misc/sounds/bell-ringing-01.mp3"></audio>
+
+  <script>
+    const symbols = ['🍒', '🍋', '🔔', '⭐', '7️⃣'];
+    const reels = document.getElementById('reels');
+    const message = document.getElementById('message');
+    const winSound = document.getElementById('win-sound');
+    const loseSound = document.getElementById('lose-sound');
+    const jackpotSound = document.getElementById('jackpot-sound');
+    const bgMusic = document.getElementById('bg-music');
+    const freespinDisplay = document.getElementById('freespins');
+    const jackpotDisplay = document.getElementById('jackpot');
+
+    let balance = parseInt(localStorage.getItem('slotBalance')) || 1000;
+    let freespins = parseInt(localStorage.getItem('slotFreespins')) || 0;
+    let jackpot = parseInt(localStorage.getItem('slotJackpot')) || 1000;
+    let musicPlaying = false;
+
+    document.getElementById('balance').textContent = balance;
+    freespinDisplay.textContent = freespins;
+    jackpotDisplay.textContent = jackpot;
+
+    function spin() {
+      if (!musicPlaying) {
+        bgMusic.play();
+        musicPlaying = true;
+      }
+
+      const bet = parseInt(document.getElementById('bet').value);
+
+      if (bet > balance && freespins <= 0) {
+        message.textContent = 'Недостаточно средств!';
+        return;
+      }
+
+      reels.classList.add('spin');
+      setTimeout(() => {
+        reels.classList.remove('spin');
+
+        const reel1 = getSymbol();
+        const reel2 = getSymbol();
+        const reel3 = getSymbol();
+
+        reels.textContent = `${reel1} ${reel2} ${reel3}`;
+        let roundMessage = '';
+        let win = 0;
+
+        let stars = [reel1, reel2, reel3].filter(s => s === '⭐').length;
+        if (stars === 3) {
+          freespins += 3;
+          roundMessage += 'Вы получили 3 фриспина! ';
+        }
+
+        if (reel1 === reel2 && reel2 === reel3) {
+          if (reel1 === '7️⃣') {
+            win = jackpot;
+            jackpot = 1000;
+            roundMessage += `ДЖЕКПОТ! Вы выиграли ${win} монет! `;
+            jackpotSound.play();
+          } else {
+            win = bet * 5;
+            roundMessage += `Вы выиграли ${win} монет! `;
+            winSound.play();
+          }
+          balance += win;
+        } else if (stars < 3) {
+          if (freespins > 0) {
+            freespins--;
+            roundMessage += 'Фриспин использован';
+          } else {
+            balance -= bet;
+            let jackpotAdd = Math.floor(bet * 0.1);
+            jackpot += jackpotAdd;
+            roundMessage += 'Попробуйте снова';
+            loseSound.play();
+          }
+        }
+
+        document.getElementById('balance').textContent = balance;
+        freespinDisplay.textContent = freespins;
+        jackpotDisplay.textContent = jackpot;
+        message.textContent = roundMessage;
+
+        localStorage.setItem('slotBalance', balance);
+        localStorage.setItem('slotFreespins', freespins);
+        localStorage.setItem('slotJackpot', jackpot);
+      }, 300);
+    }
+
+    function getSymbol() {
+      const index = Math.floor(Math.random() * symbols.length);
+      return symbols[index];
+    }
+
+    function toggleMusic() {
+      if (bgMusic.paused) {
+        bgMusic.play();
+        musicPlaying = true;
+      } else {
+        bgMusic.pause();
+        musicPlaying = false;
+      }
+    }
+  </script>
+</body>
+</html>
